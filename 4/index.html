@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Motion Profile Plotter</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+					"Helvetica Neue", Arial, sans-serif;
+				background: #1e1e1e;
+				color: #d4d4d4;
+				min-height: 100vh;
+			}
+
+			.container {
+				max-width: 100%;
+				margin: 0 auto;
+				background: #252526;
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+			}
+
+			.header {
+				background: #2d2d30;
+				color: #cccccc;
+				padding: 16px 24px;
+				border-bottom: 1px solid #3e3e42;
+			}
+
+			.header h1 {
+				font-size: 16px;
+				font-weight: 400;
+				margin-bottom: 4px;
+			}
+
+			.header p {
+				font-size: 12px;
+				color: #858585;
+			}
+
+			.tabs {
+				display: flex;
+				background: #2d2d30;
+				border-bottom: 1px solid #3e3e42;
+			}
+
+			.tab {
+				padding: 10px 24px;
+				cursor: pointer;
+				background: transparent;
+				border: none;
+				font-size: 13px;
+				font-family: inherit;
+				color: #969696;
+				border-right: 1px solid #3e3e42;
+				transition:
+					background 0.1s,
+					color 0.1s;
+			}
+
+			.tab:hover {
+				background: #37373d;
+				color: #cccccc;
+			}
+
+			.tab.active {
+				color: #ffffff;
+				background: #1e1e1e;
+				border-bottom: 1px solid #007acc;
+			}
+
+			.tab-content {
+				display: none;
+				flex: 1;
+			}
+
+			.tab-content.active {
+				display: flex;
+			}
+
+			.layout {
+				display: flex;
+				flex: 1;
+				height: calc(100vh - 120px);
+			}
+
+			.left-panel {
+				width: 320px;
+				background: #252526;
+				border-right: 1px solid #3e3e42;
+				padding: 24px;
+				overflow-y: auto;
+			}
+
+			.right-panel {
+				flex: 1;
+				background: #1e1e1e;
+				padding: 24px;
+				overflow-y: auto;
+			}
+
+			.input-list {
+				display: flex;
+				flex-direction: column;
+				gap: 16px;
+			}
+
+			.input-group {
+				display: flex;
+				flex-direction: column;
+			}
+
+			.input-group label {
+				font-size: 12px;
+				color: #cccccc;
+				margin-bottom: 6px;
+			}
+
+			.input-group input {
+				padding: 6px 8px;
+				border: 1px solid #3e3e42;
+				background: #3c3c3c;
+				color: #cccccc;
+				font-size: 13px;
+				font-family: inherit;
+			}
+
+			.input-group input:focus {
+				outline: none;
+				border: 1px solid #007acc;
+				background: #2d2d30;
+			}
+
+			.btn {
+				background: #0e639c;
+				color: #ffffff;
+				border: none;
+				padding: 8px 16px;
+				font-size: 13px;
+				font-family: inherit;
+				cursor: pointer;
+				margin-top: 24px;
+				transition: background 0.1s;
+				width: 100%;
+			}
+
+			.btn:hover {
+				background: #1177bb;
+			}
+
+			.btn:active {
+				background: #0d5a8f;
+			}
+
+			.plots {
+				display: flex;
+				flex-direction: column;
+				gap: 24px;
+			}
+
+			.plot {
+				background: #252526;
+				border: 1px solid #3e3e42;
+				padding: 16px;
+			}
+
+			.section-title {
+				font-size: 13px;
+				color: #cccccc;
+				margin-bottom: 16px;
+				padding-bottom: 8px;
+				border-bottom: 1px solid #3e3e42;
+			}
+
+			.joint-section {
+				margin-bottom: 24px;
+				padding-bottom: 24px;
+				border-bottom: 1px solid #3e3e42;
+			}
+
+			.joint-section:last-of-type {
+				border-bottom: none;
+			}
+
+			.joint-title {
+				font-size: 12px;
+				color: #4fc3f7;
+				margin-bottom: 12px;
+				font-weight: 500;
+			}
+
+			canvas {
+				max-width: 100%;
+			}
+
+			.info-text {
+				font-size: 12px;
+				color: #4fc3f7;
+				margin-bottom: 16px;
+				padding: 8px 12px;
+				background: #252526;
+				border: 1px solid #3e3e42;
+			}
+
+			@media (max-width: 1024px) {
+				.layout {
+					flex-direction: column;
+					height: auto;
+				}
+
+				.left-panel {
+					width: 100%;
+					border-right: none;
+					border-bottom: 1px solid #3e3e42;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h1>Motion Profile Plotter</h1>
+				<p>
+					Trapezoidal motion profiles for single and coordinated joint
+					movements
+				</p>
+			</div>
+
+			<div class="tabs">
+				<button class="tab active" onclick="switchTab(0)">
+					Profile
+				</button>
+				<button class="tab" onclick="switchTab(1)">Motion</button>
+				<button class="tab" onclick="switchTab(2)">
+					Joint Coordination
+				</button>
+			</div>
+
+			<!-- Tab 1: Profile -->
+			<div class="tab-content active">
+				<div class="layout">
+					<div class="left-panel">
+						<div class="section-title">Parameters</div>
+						<div class="input-list">
+							<div class="input-group">
+								<label>Displacement</label>
+								<input
+									type="number"
+									id="p_displacement"
+									value="100"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Start Position</label>
+								<input
+									type="number"
+									id="p_start"
+									value="0"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Total Time</label>
+								<input
+									type="number"
+									id="p_total_time"
+									value="2"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Acceleration Time (Ta)</label>
+								<input
+									type="number"
+									id="p_ta"
+									value="0.5"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Time Interval</label>
+								<input
+									type="number"
+									id="p_interval"
+									value="0.1"
+									step="any"
+								/>
+							</div>
+						</div>
+						<button class="btn" onclick="plotProfile()">
+							Generate
+						</button>
+					</div>
+					<div class="right-panel">
+						<div class="plots" id="profile_plots"></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Tab 2: Motion -->
+			<div class="tab-content">
+				<div class="layout">
+					<div class="left-panel">
+						<div class="section-title">Parameters</div>
+						<div class="input-list">
+							<div class="input-group">
+								<label>Displacement</label>
+								<input
+									type="number"
+									id="m_displacement"
+									value="100"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Start Position</label>
+								<input
+									type="number"
+									id="m_start"
+									value="0"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Time Interval</label>
+								<input
+									type="number"
+									id="m_interval"
+									value="0.1"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Acceleration Limit</label>
+								<input
+									type="number"
+									id="m_accel_limit"
+									value="50"
+									step="any"
+								/>
+							</div>
+							<div class="input-group">
+								<label>Velocity Limit</label>
+								<input
+									type="number"
+									id="m_velo_limit"
+									value="100"
+									step="any"
+								/>
+							</div>
+						</div>
+						<button class="btn" onclick="plotMotion()">
+							Generate
+						</button>
+					</div>
+					<div class="right-panel">
+						<div id="motion_info"></div>
+						<div class="plots" id="motion_plots"></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Tab 3: Joint Interpolation -->
+			<div class="tab-content">
+				<div class="layout">
+					<div class="left-panel">
+						<div class="section-title">Parameters</div>
+
+						<div class="joint-section">
+							<div class="joint-title">Joint A</div>
+							<div class="input-list">
+								<div class="input-group">
+									<label>Displacement A</label>
+									<input
+										type="number"
+										id="j_displacement_a"
+										value="100"
+										step="any"
+									/>
+								</div>
+								<div class="input-group">
+									<label>Start A</label>
+									<input
+										type="number"
+										id="j_start_a"
+										value="0"
+										step="any"
+									/>
+								</div>
+								<div class="input-group">
+									<label>Acceleration Limit A</label>
+									<input
+										type="number"
+										id="j_accel_a"
+										value="100"
+										step="any"
+									/>
+								</div>
+								<div class="input-group">
+									<label>Velocity Limit A</label>
+									<input
+										type="number"
+										id="j_velo_a"
+										value="200"
+										step="any"
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div class="joint-section">
+							<div class="joint-title">Joint B</div>
+							<div class="input-list">
+								<div class="input-group">
+									<label>Displacement B</label>
+									<input
+										type="number"
+										id="j_displacement_b"
+										value="50"
+										step="any"
+									/>
+								</div>
+								<div class="input-group">
+									<label>Start B</label>
+									<input
+										type="number"
+										id="j_start_b"
+										value="0"
+										step="any"
+									/>
+								</div>
+								<div class="input-group">
+									<label>Acceleration Limit B</label>
+									<input
+										type="number"
+										id="j_accel_b"
+										value="80"
+										step="any"
+									/>
+								</div>
+								<div class="input-group">
+									<label>Velocity Limit B</label>
+									<input
+										type="number"
+										id="j_velo_b"
+										value="150"
+										step="any"
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div class="input-list">
+							<div class="input-group">
+								<label>Time Interval</label>
+								<input
+									type="number"
+									id="j_interval"
+									value="0.1"
+									step="any"
+								/>
+							</div>
+						</div>
+
+						<button class="btn" onclick="plotJointInterpolation()">
+							Generate
+						</button>
+					</div>
+					<div class="right-panel">
+						<div id="joint_info"></div>
+						<div class="plots" id="joint_plots"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+		<script type="module">
+			function profile(d, s, t, ta) {
+				const tf = t[t.length - 1];
+				if (Math.abs(d) < 1e-9 || ta < 1e-9) {
+					return [
+						Array(t.length).fill(s),
+						Array(t.length).fill(0),
+						Array(t.length).fill(0),
+					];
+				}
+				const vm = d / (tf - ta);
+				const am = vm / ta;
+
+				const calc = (ti) => {
+					if (ti <= ta) {
+						return [s + 0.5 * am * ti * ti, am * ti, am];
+					} else if (ti <= tf - ta) {
+						return [s + vm * (ti - 0.5 * ta), vm, 0];
+					} else {
+						const dt = ti - (tf - ta);
+						return [
+							s + d - vm * (ta - 0.5 * dt) + 0.5 * am * dt * dt,
+							vm - am * dt,
+							-am,
+						];
+					}
+				};
+
+				const results = t.map(calc);
+				return [
+					results.map((r) => r[0]),
+					results.map((r) => r[1]),
+					results.map((r) => r[2]),
+				];
+			}
+
+			function motion(d, i, al, vl) {
+				let ta = vl / al;
+				let tf;
+
+				if (Math.abs(d) <= al * ta * ta) {
+					ta = Math.sqrt(Math.abs(d) / al);
+					tf = 2 * ta;
+				} else {
+					tf = Math.abs(d) / vl + ta;
+				}
+
+				const t = [];
+				let c = 0;
+				while (c <= tf) {
+					t.push(c);
+					c += i;
+				}
+				if (t.length === 0 || t[t.length - 1] < tf) {
+					t.push(tf);
+				}
+
+				return [t, ta];
+			}
+
+			function jointInterpolation(da, sa, db, sb, i, ala, vla, alb, vlb) {
+				const [ta, taa] = motion(da, i, ala, vla);
+				const [tb, tab] = motion(db, i, alb, vlb);
+
+				const tf = Math.max(ta[ta.length - 1], tb[tb.length - 1]);
+
+				const t = [];
+				let c = 0;
+				while (c <= tf) {
+					t.push(c);
+					c += i;
+				}
+				if (t.length === 0 || t[t.length - 1] < tf) {
+					t.push(tf);
+				}
+
+				let taa_new = Math.abs(da) > 0 ? taa : 0;
+				let tab_new = Math.abs(db) > 0 ? tab : 0;
+
+				if (ta[ta.length - 1] < tf && Math.abs(da) > 0) {
+					taa_new = taa + (tf - ta[ta.length - 1]) / 2;
+				}
+				if (tb[tb.length - 1] < tf && Math.abs(db) > 0) {
+					tab_new = tab + (tf - tb[tb.length - 1]) / 2;
+				}
+
+				const eoma = profile(da, sa, t, taa_new);
+				const eomb = profile(db, sb, t, tab_new);
+
+				return [eoma, eomb, t];
+			}
+
+			window.switchTab = function (index) {
+				const tabs = document.querySelectorAll(".tab");
+				const contents = document.querySelectorAll(".tab-content");
+
+				tabs.forEach((tab, i) => {
+					if (i === index) {
+						tab.classList.add("active");
+						contents[i].classList.add("active");
+					} else {
+						tab.classList.remove("active");
+						contents[i].classList.remove("active");
+					}
+				});
+			};
+
+			function createChart(container, t, datasets, title, yLabel) {
+				const canvas = document.createElement("canvas");
+				container.appendChild(canvas);
+
+				new Chart(canvas, {
+					type: "line",
+					data: {
+						labels: t,
+						datasets: datasets,
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: true,
+						plugins: {
+							title: {
+								display: true,
+								text: title,
+								font: { size: 13, weight: "normal" },
+								color: "#cccccc",
+							},
+							legend: {
+								display: datasets.length > 1,
+								labels: {
+									color: "#cccccc",
+									font: { size: 12 },
+								},
+							},
+						},
+						scales: {
+							x: {
+								title: {
+									display: true,
+									text: "Time (s)",
+									color: "#858585",
+									font: { size: 11 },
+								},
+								ticks: {
+									color: "#858585",
+									font: { size: 10 },
+								},
+								grid: {
+									color: "#3e3e42",
+								},
+							},
+							y: {
+								title: {
+									display: true,
+									text: yLabel,
+									color: "#858585",
+									font: { size: 11 },
+								},
+								ticks: {
+									color: "#858585",
+									font: { size: 10 },
+								},
+								grid: {
+									color: "#3e3e42",
+								},
+							},
+						},
+						elements: {
+							line: {
+								tension: 0.4,
+							},
+							point: {
+								radius: 0,
+							},
+						},
+					},
+				});
+			}
+
+			window.plotProfile = function () {
+				const d = parseFloat(
+					document.getElementById("p_displacement").value,
+				);
+				const s = parseFloat(document.getElementById("p_start").value);
+				const tt = parseFloat(
+					document.getElementById("p_total_time").value,
+				);
+				const ta = parseFloat(document.getElementById("p_ta").value);
+				const interval = parseFloat(
+					document.getElementById("p_interval").value,
+				);
+
+				const t = [];
+				let c = 0;
+				while (c <= tt) {
+					t.push(c);
+					c += interval;
+				}
+				if (t.length === 0 || t[t.length - 1] < tt) {
+					t.push(tt);
+				}
+
+				const [pos, vel, acc] = profile(d, s, t, ta);
+
+				const container = document.getElementById("profile_plots");
+				container.innerHTML = "";
+
+				const posPlot = document.createElement("div");
+				posPlot.className = "plot";
+				container.appendChild(posPlot);
+				createChart(
+					posPlot,
+					t,
+					[
+						{
+							label: "Position",
+							data: pos,
+							borderColor: "#4fc3f7",
+							backgroundColor: "rgba(79, 195, 247, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Position",
+					"Position",
+				);
+
+				const velPlot = document.createElement("div");
+				velPlot.className = "plot";
+				container.appendChild(velPlot);
+				createChart(
+					velPlot,
+					t,
+					[
+						{
+							label: "Velocity",
+							data: vel,
+							borderColor: "#ce93d8",
+							backgroundColor: "rgba(206, 147, 216, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Velocity",
+					"Velocity",
+				);
+
+				const accPlot = document.createElement("div");
+				accPlot.className = "plot";
+				container.appendChild(accPlot);
+				createChart(
+					accPlot,
+					t,
+					[
+						{
+							label: "Acceleration",
+							data: acc,
+							borderColor: "#80cbc4",
+							backgroundColor: "rgba(128, 203, 196, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Acceleration",
+					"Acceleration",
+				);
+			};
+
+			window.plotMotion = function () {
+				const d = parseFloat(
+					document.getElementById("m_displacement").value,
+				);
+				const s = parseFloat(document.getElementById("m_start").value);
+				const interval = parseFloat(
+					document.getElementById("m_interval").value,
+				);
+				const al = parseFloat(
+					document.getElementById("m_accel_limit").value,
+				);
+				const vl = parseFloat(
+					document.getElementById("m_velo_limit").value,
+				);
+
+				const [t, ta] = motion(d, interval, al, vl);
+				const [pos, vel, acc] = profile(d, s, t, ta);
+
+				document.getElementById("motion_info").innerHTML =
+					`<div class="info-text">Ta: ${ta.toFixed(3)}s | Total: ${t[t.length - 1].toFixed(3)}s</div>`;
+
+				const container = document.getElementById("motion_plots");
+				container.innerHTML = "";
+
+				const posPlot = document.createElement("div");
+				posPlot.className = "plot";
+				container.appendChild(posPlot);
+				createChart(
+					posPlot,
+					t,
+					[
+						{
+							label: "Position",
+							data: pos,
+							borderColor: "#4fc3f7",
+							backgroundColor: "rgba(79, 195, 247, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Position",
+					"Position",
+				);
+
+				const velPlot = document.createElement("div");
+				velPlot.className = "plot";
+				container.appendChild(velPlot);
+				createChart(
+					velPlot,
+					t,
+					[
+						{
+							label: "Velocity",
+							data: vel,
+							borderColor: "#ce93d8",
+							backgroundColor: "rgba(206, 147, 216, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Velocity",
+					"Velocity",
+				);
+
+				const accPlot = document.createElement("div");
+				accPlot.className = "plot";
+				container.appendChild(accPlot);
+				createChart(
+					accPlot,
+					t,
+					[
+						{
+							label: "Acceleration",
+							data: acc,
+							borderColor: "#80cbc4",
+							backgroundColor: "rgba(128, 203, 196, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Acceleration",
+					"Acceleration",
+				);
+			};
+
+			window.plotJointInterpolation = function () {
+				const da = parseFloat(
+					document.getElementById("j_displacement_a").value,
+				);
+				const sa = parseFloat(
+					document.getElementById("j_start_a").value,
+				);
+				const db = parseFloat(
+					document.getElementById("j_displacement_b").value,
+				);
+				const sb = parseFloat(
+					document.getElementById("j_start_b").value,
+				);
+				const interval = parseFloat(
+					document.getElementById("j_interval").value,
+				);
+				const ala = parseFloat(
+					document.getElementById("j_accel_a").value,
+				);
+				const vla = parseFloat(
+					document.getElementById("j_velo_a").value,
+				);
+				const alb = parseFloat(
+					document.getElementById("j_accel_b").value,
+				);
+				const vlb = parseFloat(
+					document.getElementById("j_velo_b").value,
+				);
+
+				const [eoma, eomb, t] = jointInterpolation(
+					da,
+					sa,
+					db,
+					sb,
+					interval,
+					ala,
+					vla,
+					alb,
+					vlb,
+				);
+
+				document.getElementById("joint_info").innerHTML =
+					`<div class="info-text">Total: ${t[t.length - 1].toFixed(3)}s</div>`;
+
+				const container = document.getElementById("joint_plots");
+				container.innerHTML = "";
+
+				const posPlot = document.createElement("div");
+				posPlot.className = "plot";
+				container.appendChild(posPlot);
+				createChart(
+					posPlot,
+					t,
+					[
+						{
+							label: "Joint A",
+							data: eoma[0],
+							borderColor: "#4fc3f7",
+							backgroundColor: "rgba(79, 195, 247, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+						{
+							label: "Joint B",
+							data: eomb[0],
+							borderColor: "#ce93d8",
+							backgroundColor: "rgba(206, 147, 216, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Position",
+					"Position",
+				);
+
+				const velPlot = document.createElement("div");
+				velPlot.className = "plot";
+				container.appendChild(velPlot);
+				createChart(
+					velPlot,
+					t,
+					[
+						{
+							label: "Joint A",
+							data: eoma[1],
+							borderColor: "#4fc3f7",
+							backgroundColor: "rgba(79, 195, 247, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+						{
+							label: "Joint B",
+							data: eomb[1],
+							borderColor: "#ce93d8",
+							backgroundColor: "rgba(206, 147, 216, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Velocity",
+					"Velocity",
+				);
+
+				const accPlot = document.createElement("div");
+				accPlot.className = "plot";
+				container.appendChild(accPlot);
+				createChart(
+					accPlot,
+					t,
+					[
+						{
+							label: "Joint A",
+							data: eoma[2],
+							borderColor: "#4fc3f7",
+							backgroundColor: "rgba(79, 195, 247, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+						{
+							label: "Joint B",
+							data: eomb[2],
+							borderColor: "#ce93d8",
+							backgroundColor: "rgba(206, 147, 216, 0.1)",
+							borderWidth: 2,
+							fill: true,
+						},
+					],
+					"Acceleration",
+					"Acceleration",
+				);
+			};
+
+			// Load first plot on page load
+			window.addEventListener("load", () => {
+				setTimeout(window.plotProfile, 100);
+			});
+		</script>
+	</body>
+</html>

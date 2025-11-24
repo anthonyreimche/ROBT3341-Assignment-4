@@ -1,0 +1,1 @@
+pyinstaller --onefile motionUI.py --name=Assignment4Group8
